@@ -1,0 +1,6 @@
+numpy>=1.26.0,<3
+openai>=1.40.0,<2
+pydantic>=2.6.0,<3
+PyYAML>=6.0.1,<7
+matplotlib
+imageio

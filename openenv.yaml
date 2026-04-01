@@ -1,0 +1,28 @@
+# OpenEnv / CI metadata for Garbage Collection Routing
+name: garbage-collection-routing-openenv
+version: "0.1.0"
+description: >
+  Municipal garbage collection routing with multi-truck capacity, fuel costs,
+  stochastic accumulation, and zone constraints (hard mode).
+language: python
+runtime:
+  python: "3.12"
+entry:
+  environment_class:
+    module: env.environment
+    class: GarbageRoutingEnvironment
+  task_modules:
+    easy: tasks.easy_task:get_task_config
+    medium: tasks.medium_task:get_task_config
+    hard: tasks.hard_task:get_task_config
+  grader_modules:
+    easy: graders.easy_grader:grade
+    medium: graders.medium_grader:grade
+    hard: graders.hard_grader:grade
+validation:
+  smoke_tests:
+    - command: python -c "from env.environment import GarbageRoutingEnvironment; from tasks.easy_task import get_task_config; e=GarbageRoutingEnvironment(get_task_config()); e.reset(0); print('ok')"
+    - command: python scripts/run_baseline.py --task easy --agent random --seed 0
+docker:
+  context: .
+  file: Dockerfile
