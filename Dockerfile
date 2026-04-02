@@ -14,4 +14,5 @@ COPY . .
 # Random policy smoke run (no API keys required)
 # CMD ["python", "scripts/run_baseline.py", "--task", "easy", "--agent", "random", "--seed", "0"]
 
-CMD ["python", "scripts/run_all_tasks.py"]
+# CMD ["python", "scripts/run_all_tasks.py"]
+CMD ["python", "app.py"]
