@@ -1,16 +1,3 @@
----
-title: OpenEnv Garbage Collector Ai
-emoji: 👁
-colorFrom: gray
-colorTo: yellow
-sdk: docker
-pinned: false
-license: mit
-short_description: Project regarding the optimized garbage collection
-tags:
-- openenv
----
-
 # Garbage Collection Routing OpenEnv
 
 Production-style simulation of **municipal garbage collection**: an agent dispatches trucks to neighborhoods, balances **capacity** and **fuel**, and times **landfill dumps** while garbage **accumulates stochastically**. The repo exposes an OpenEnv-style API (`reset`, `step`, `state`, `get_observation`), three task tiers, graders, and baseline rollouts (**random** or **OpenAI**).
