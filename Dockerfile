@@ -15,4 +15,6 @@ COPY . .
 # CMD ["python", "scripts/run_baseline.py", "--task", "easy", "--agent", "random", "--seed", "0"]
 
 # CMD ["python", "scripts/run_all_tasks.py"]
-CMD ["python", "app.py"]
+# CMD ["python", "app.py"]
+CMD ["python", "inference.py"]
+# CMD ["python", "-u", "inference.py"]
