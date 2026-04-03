@@ -18,10 +18,6 @@ from tasks.medium_task import get_task_config as get_medium_task_config
 # variables already set in the process environment.
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
-API_BASE_URL = os.getenv("API_BASE_URL")
-MODEL_NAME = os.getenv("MODEL_NAME")
-HF_TOKEN = os.getenv("HF_TOKEN")
-
 _TASK_FACTORIES: Dict[str, Callable[[], TaskConfig]] = {
     "easy": get_easy_task_config,
     "medium": get_medium_task_config,
@@ -47,12 +43,13 @@ def _get_client() -> Optional[OpenAI]:
     global _client
     if _client is not None:
         return _client
-    api_key = HF_TOKEN or os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
     if not api_key:
         return None
     kwargs: Dict[str, Any] = {"api_key": api_key}
-    if API_BASE_URL:
-        kwargs["base_url"] = API_BASE_URL
+    base_url = os.getenv("API_BASE_URL")
+    if base_url:
+        kwargs["base_url"] = base_url
     _client = OpenAI(**kwargs)
     return _client
 
@@ -139,7 +136,8 @@ def heuristic_action(
 
 
 def llm_refine_action(obs, heuristic: Action):
-    if not MODEL_NAME:
+    model_name = os.getenv("MODEL_NAME")
+    if not model_name:
         return heuristic
     client = _get_client()
     if client is None:
@@ -165,7 +163,7 @@ Return JSON only:
 
     try:
         resp = client.chat.completions.create(
-            model=MODEL_NAME,
+            model=model_name,
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
         )
@@ -189,7 +187,12 @@ def run(task: Optional[str] = None) -> None:
 
     env = GarbageRoutingEnvironment(cfg)
 
-    obs = env.reset(seed=random.randint(0, 10000))
+    seed_raw = os.getenv("EPISODE_SEED")
+    if seed_raw is not None and str(seed_raw).strip() != "":
+        episode_seed = int(seed_raw)
+    else:
+        episode_seed = random.randint(0, 10000)
+    obs = env.reset(seed=episode_seed)
 
     print(
         json.dumps(
@@ -197,6 +200,7 @@ def run(task: Optional[str] = None) -> None:
                 "event": "[START]",
                 "task": cfg.name,
                 "max_steps": cfg.max_steps,
+                "episode_seed": episode_seed,
             }
         )
     )

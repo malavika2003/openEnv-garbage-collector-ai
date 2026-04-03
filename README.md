@@ -10,6 +10,7 @@ Production-style simulation of **municipal garbage collection**: an agent dispat
 - **Tasks:** easy (5 hoods, 1 truck), medium (10, 2), hard (20, 3 with **zone constraints** via `truck_allowed_neighborhoods`).
 - **Graders:** score in **[0, 100]** from collection ratio, fuel efficiency, time pressure, overflow / invalid / constraint penalties.
 - **Scripts:** `run_baseline.py` (single episode JSON to stdout), `run_all_tasks.py` (easy/medium/hard random sweep + scoreboard).
+- **Inference:** `inference.py` streams newline JSON events (`[START]`, `[STEP]`, `[END]`) using a **distance-aware greedy heuristic** (optional **LLM refine** when API env vars are set), **hard-mode zoning**, per-step **target reservation**, and `.env` loading via **python-dotenv**.
 
 ## Repository layout
 
@@ -20,6 +21,8 @@ openEnv-garbage-collector-ai/
 ├── requirements.txt
 ├── README.md
 ├── LICENSE
+├── inference.py              # Heuristic (+ optional LLM) rollout, streaming JSON logs
+├── app.py                    # Gradio wrapper around run_baseline.py (optional)
 ├── env/
 │   ├── __init__.py
 │   ├── environment.py        # GarbageRoutingEnvironment
@@ -42,7 +45,7 @@ openEnv-garbage-collector-ai/
 
 - **Python 3.12** (see `Dockerfile` / `openenv.yaml`).
 - Install: `pip install -r requirements.txt`  
-  Core: `numpy`, `pydantic`, `openai`, `PyYAML`. The file may also list tooling such as `matplotlib` / `imageio` for local experimentation.
+  Core: `numpy`, `pydantic`, `openai`, `PyYAML`, `python-dotenv`. The file may also list tooling such as `matplotlib` / `imageio` / `gradio` for local experimentation.
 
 ## Quick start (local)
 
@@ -98,6 +101,42 @@ Runs `run_baseline.py` for **easy**, **medium**, and **hard** with `--agent rand
 python scripts/run_all_tasks.py
 ```
 
+## Inference loop (`inference.py`)
+
+Runs one episode with a **greedy heuristic**: over all truck × neighborhood pairs (respecting **hard-task zones** when present), score `garbage_mass / (distance + 1)` using the simulator **distance matrix**; nearly full trucks go to the landfill (`neighborhood_id == -1`). Each timestep uses a module-level **`assigned_targets`** set (cleared at the start of every step) so the same hood is not double-booked within that step’s planning pass. If **`MODEL_NAME`** is set **and** an API key is available (`HF_TOKEN` or `OPENAI_API_KEY`), the client may **refine** the heuristic action via chat JSON; otherwise the heuristic is used as-is.
+
+Loads **`.env`** from the repo root (same folder as `inference.py`); existing process environment variables are **not** overridden.
+
+| Variable | Role |
+|----------|------|
+| `TASK` | `easy` \| `medium` \| `hard` — scenario (default **`medium`** if unset). |
+| `EPISODE_SEED` | If set (integer), passed to `env.reset(seed=…)` for reproducible episodes. If unset, a random seed in **0…10000** is used. |
+| `API_BASE_URL` | Optional; OpenAI-compatible API base URL (omit for default OpenAI host). |
+| `OPENAI_API_KEY` or `HF_TOKEN` | API key for the LLM client. |
+| `MODEL_NAME` | Chat model id; if missing or empty, **no** LLM calls (heuristic only). |
+
+**CLI:** `python inference.py --task easy` overrides `TASK` for that run.
+
+```powershell
+$env:PYTHONPATH = (Get-Location).Path
+$env:EPISODE_SEED = "0"
+python inference.py --task medium
+```
+
+**Output:** one JSON object per line. `[START]` includes `task`, `max_steps`, and `episode_seed`. `[STEP]` includes `truck_id`, `neighborhood_id`, `reward` (full `Reward` dict), `done`. `[END]` includes `steps` and **`total_reward`** (sum of per-step `reward.total`, same notion as baseline `cumulative_reward`).
+
+### Baseline vs inference (same episode seed)
+
+Apples-to-apples comparison uses **episode seed 0** for both: baseline `python scripts/run_baseline.py --task <tier> --agent random --seed 0`, and inference with **`EPISODE_SEED=0`** and **heuristic-only** (no `MODEL_NAME`, or no API key). Figures below are from one run of the current simulator; re-running may shift floats slightly.
+
+| Task | Steps | Random baseline cumulative reward | Random grader score (0–100) | Inference heuristic cumulative reward | Inference grader score (0–100) |
+|------|------:|----------------------------------:|----------------------------:|--------------------------------------:|---------------------------------:|
+| easy | 120 | 1344.44 | 76.37 | 1385.41 | 86.39 |
+| medium | 220 | 3305.24 | 66.34 | 5327.97 | 69.57 |
+| hard | 420 | -83621.94 | 41.32 | -81606.21 | 41.53 |
+
+**Readout:** on **easy** and **medium**, the heuristic improves both **cumulative reward** and **grader** vs random at seed 0. On **hard**, reward is still strongly negative (overflow pressure), but the heuristic is **less negative** than random and achieves a similar grader score.
+
 ## Environment API
 
 ### Action
@@ -143,24 +182,36 @@ Each `graders/<difficulty>_grader.py` exposes `grade(summary: EpisodeSummary) ->
 docker build -t garbage-ai .
 ```
 
+### Run inference (default `CMD`)
+
+The image runs **`python inference.py`** by default (streaming JSON to stdout).
+
+```bash
+docker run --rm garbage-ai
+docker run --rm -e TASK=easy -e EPISODE_SEED=0 garbage-ai
+docker run --rm garbage-ai python inference.py --task hard
+```
+
 ### Run a single task (baseline JSON output)
+
+Override the command to use the baseline script:
 
 Easy:
 
 ```bash
-docker run --rm garbage-ai python scripts/run_baseline.py --task easy
+docker run --rm garbage-ai python scripts/run_baseline.py --task easy --agent random --seed 0
 ```
 
 Medium:
 
 ```bash
-docker run --rm garbage-ai python scripts/run_baseline.py --task medium
+docker run --rm garbage-ai python scripts/run_baseline.py --task medium --agent random --seed 0
 ```
 
 Hard:
 
 ```bash
-docker run --rm garbage-ai python scripts/run_baseline.py --task hard
+docker run --rm garbage-ai python scripts/run_baseline.py --task hard --agent random --seed 0
 ```
 
 ### Get the scoreboard (easy + medium + hard)
