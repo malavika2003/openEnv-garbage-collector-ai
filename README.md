@@ -22,7 +22,9 @@ openEnv-garbage-collector-ai/
 ├── README.md
 ├── LICENSE
 ├── inference.py              # Heuristic (+ optional LLM) rollout, streaming JSON logs
-├── app.py                    # Gradio wrapper around run_baseline.py (optional)
+├── pyproject.toml
+├── server/
+    ├── app.py                    # Fast API : reset(), step(), state(), home()
 ├── env/
 │   ├── __init__.py
 │   ├── environment.py        # GarbageRoutingEnvironment
