@@ -1,9 +1,9 @@
 numpy>=1.26.0,<3
-openai>=1.40.0,<2
 pydantic>=2.6.0,<3
 PyYAML>=6.0.1,<7
 python-dotenv>=1.0.0,<2
 matplotlib
-imageio
-gradio
 openai
+fastapi
+uvicorn
+openenv-core>=0.2.0

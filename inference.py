@@ -255,3 +255,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     run(task=args.task)
+    import time
+    while True:
+        time.sleep(3600)
