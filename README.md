@@ -422,6 +422,14 @@ MEDIUM : 66.34480481537486
 HARD : 41.322194110884226
 
 ```
+# API Endpoints
+## Endpoint Overview
+| Endpoint | Method | Description                               |
+|----------|--------|-------------------------------------------|
+| `/reset` | POST   | Initialize environment with selected task |
+| `/step`  | POST   | Execute one environment step              |
+| `/state` | GET    | Retrieve current environment state        |
+| `/`      | GET    | Health check                              |
 
 ## License
 
